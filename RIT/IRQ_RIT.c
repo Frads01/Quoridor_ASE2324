@@ -112,6 +112,58 @@ void RIT_IRQHandler (void)
 		}
 	}else	up=0;
 	
+	if ((LPC_GPIO1->FIOPIN & (1<<26)) == 0 && (LPC_GPIO1->FIOPIN & (1<<27))){ //Bottom left
+		down++;
+		left++;
+		
+		if(down==1 && left==1){
+			moveElement(dl_e);
+		}
+		
+	} else {
+		down=0;
+		left=0;
+	}
+
+	if ((LPC_GPIO1->FIOPIN & (1<<26)) == 0 && (LPC_GPIO1->FIOPIN & (1<<28))){ //Bottom right
+		down++;
+		right++;
+		
+		if (down==1 && right==1){
+			moveElement(dr_e);
+		}
+		
+	} else {
+		down=0;
+		right=0;
+	}
+	
+	if ((LPC_GPIO1->FIOPIN & (1<<29)) == 0 && (LPC_GPIO1->FIOPIN & (1<<27))){ //Top left
+		up++;
+		left++;
+		
+		if (up==1 && left==1) {
+			moveElement(ul_e);
+		}
+		
+	} else {
+		up=0;
+		left=0;
+	}
+	
+	if ((LPC_GPIO1->FIOPIN & (1<<29)) == 0 && (LPC_GPIO1->FIOPIN & (1<<28))){ //Top right
+		up++;
+		right++;
+		
+		if(up==1 && right==1) {
+			moveElement(ur_e);
+		}
+		
+	} else {
+		up=0;
+		right=0;
+	}
+	
 	if(zero>=1){
 		if((LPC_GPIO2->FIOPIN & (1<<10)) == 0){
 			switch(zero){

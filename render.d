@@ -1,0 +1,14 @@
+.\render.o: render\render.c
+.\render.o: render\render.h
+.\render.o: C:\Users\franc\AppData\Local\Arm\Packs\Keil\LPC1700_DFP\2.7.1\Device\Include\LPC17xx.h
+.\render.o: C:\Users\franc\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\Core\Include\core_cm3.h
+.\render.o: C:\Keil_v5\ARM\ARMCLANG5\Bin\..\include\stdint.h
+.\render.o: C:\Users\franc\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\Core\Include\cmsis_version.h
+.\render.o: C:\Users\franc\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\Core\Include\cmsis_compiler.h
+.\render.o: C:\Users\franc\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\Core\Include\cmsis_armcc.h
+.\render.o: C:\Users\franc\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\Core\Include\mpu_armv7.h
+.\render.o: C:\Users\franc\AppData\Local\Arm\Packs\Keil\LPC1700_DFP\2.7.1\Device\Include\system_LPC17xx.h
+.\render.o: render\../GLCD/GLCD.h
+.\render.o: render\../GLCD/AsciiLib.h
+.\render.o: C:\Keil_v5\ARM\ARMCLANG5\Bin\..\include\string.h
+.\render.o: render\../game/game.h

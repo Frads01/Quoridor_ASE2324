@@ -19,7 +19,7 @@
 // - ottenere info sulla mossa (funzione uint8_t getMoveInfo(enum en_info ino); )
 enum en_info {player, mode, dir, py, px};
 // - rappresentare la direzione scelta
-enum en_dir {up_e, down_e, left_e, right_e};
+enum en_dir {up_e, down_e, left_e, right_e, ur_e, ul_e, dr_e, dl_e};
 
 void initGame(void);
 void moveElement(enum en_dir direction);

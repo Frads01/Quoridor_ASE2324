@@ -1,0 +1,1 @@
+.\move.o: move.s

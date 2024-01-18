@@ -81,7 +81,7 @@ void initGame(void){
 
 void moveElement(enum en_dir direction){
 
-	uint8_t m, p, d, x, y;
+	uint8_t m, p, d, x, y, pn;
 	int8_t skip=0;
 	
 	m = getMoveInfo(mode);
@@ -89,6 +89,7 @@ void moveElement(enum en_dir direction){
 	d = getMoveInfo(dir);
 	x = getMoveInfo(px);
 	y = getMoveInfo(py);		
+	pn = (!p & 0x1);
 	
 	switch(direction){
 		case down_e:
@@ -176,8 +177,8 @@ void moveElement(enum en_dir direction){
 			
 				if(m==0){
 					
-					if((pcoords[p].y==pcoords[(!p & 0x1)].y)
-						&& (pcoords[p].x+1==pcoords[(!p & 0x1)].x)) skip++;
+					if((pcoords[p].y==pcoords[pn].y)
+						&& (pcoords[p].x+1==pcoords[pn].x)) skip++;
 					
 					if(pcoords[p].x+skip<N_CELLS-1){
 						if(boardMat[(pcoords[p].x+skip)*2+1][pcoords[p].y*2]==' '
@@ -199,6 +200,83 @@ void moveElement(enum en_dir direction){
 			break;
 		
 		
+		case ur_e:
+			if(m==0){
+				if((pcoords[p].x == pcoords[pn].x) && (pcoords[p].y-1 == pcoords[pn].y)
+					&& (pcoords[pn].y == 0 || boardMat[pcoords[pn].x*2][pcoords[pn].y*2-1] == 'X')){
+						if(last_turn == p) writePlayer(getPlayerPosition(x), getPlayerPosition(y), PLAYER_SEL);
+							
+						move = setMove(p,m,d,pcoords[p].y-1,pcoords[p].x+1);
+						writePlayer(getPlayerPosition(getMoveInfo(px)), getPlayerPosition(getMoveInfo(py)), PLAYER_TMP);
+					}
+					
+				if((pcoords[p].x+1 == pcoords[pn].x) && (pcoords[p].y == pcoords[pn].y)
+					&& (pcoords[pn].x == N_CELLS-1 || boardMat[pcoords[pn].x*2+1][pcoords[pn].y*2] == 'X')){
+						if(last_turn == p) writePlayer(getPlayerPosition(x), getPlayerPosition(y), PLAYER_SEL);
+							
+						move = setMove(p,m,d,pcoords[p].y-1,pcoords[p].x+1);
+						writePlayer(getPlayerPosition(getMoveInfo(px)), getPlayerPosition(getMoveInfo(py)), PLAYER_TMP);
+					}
+			}
+			break;
+		
+		case ul_e:
+			if(m==0){
+				if((pcoords[p].x == pcoords[pn].x) && (pcoords[p].y-1 == pcoords[pn].y)
+					&& (pcoords[pn].y == 0 || boardMat[pcoords[pn].x*2][pcoords[pn].y*2-1] == 'X')){
+						if(last_turn == p) writePlayer(getPlayerPosition(x), getPlayerPosition(y), PLAYER_SEL);
+							
+						move = setMove(p,m,d,pcoords[p].y-1,pcoords[p].x-1);
+						writePlayer(getPlayerPosition(getMoveInfo(px)), getPlayerPosition(getMoveInfo(py)), PLAYER_TMP);
+					}
+					
+				if((pcoords[p].x-1 == pcoords[pn].x) && (pcoords[p].y == pcoords[pn].y)
+					&& (pcoords[pn].x == 0 || boardMat[pcoords[pn].x*2-1][pcoords[pn].y*2] == 'X')){
+						if(last_turn == p) writePlayer(getPlayerPosition(x), getPlayerPosition(y), PLAYER_SEL);
+							
+						move = setMove(p,m,d,pcoords[p].y-1,pcoords[p].x-1);
+						writePlayer(getPlayerPosition(getMoveInfo(px)), getPlayerPosition(getMoveInfo(py)), PLAYER_TMP);
+					}
+			}
+			break;
+		
+		case dr_e:
+			if(m==0){
+				if((pcoords[p].x == pcoords[pn].x) && (pcoords[p].y+1 == pcoords[pn].y)
+					&& (pcoords[pn].y == N_CELLS-1 || boardMat[pcoords[pn].x*2][pcoords[pn].y*2+1] == 'X')){
+						if(last_turn == p) writePlayer(getPlayerPosition(x), getPlayerPosition(y), PLAYER_SEL);
+							
+						move = setMove(p,m,d,pcoords[p].y+1,pcoords[p].x+1);
+						writePlayer(getPlayerPosition(getMoveInfo(px)), getPlayerPosition(getMoveInfo(py)), PLAYER_TMP);
+					}
+					
+				if((pcoords[p].x+1 == pcoords[pn].x) && (pcoords[p].y == pcoords[pn].y)
+					&& (pcoords[pn].x == N_CELLS-1 || boardMat[pcoords[pn].x*2+1][pcoords[pn].y*2] == 'X')){
+						if(last_turn == p) writePlayer(getPlayerPosition(x), getPlayerPosition(y), PLAYER_SEL);
+							
+						move = setMove(p,m,d,pcoords[p].y+1,pcoords[p].x+1);
+						writePlayer(getPlayerPosition(getMoveInfo(px)), getPlayerPosition(getMoveInfo(py)), PLAYER_TMP);
+					}
+			}
+			break;
+		
+		case dl_e:
+				if((pcoords[p].x == pcoords[pn].x) && (pcoords[p].y+1 == pcoords[pn].y)
+					&& (pcoords[pn].y == N_CELLS-1 || boardMat[pcoords[pn].x*2][pcoords[pn].y*2+1] == 'X')){
+						if(last_turn == p) writePlayer(getPlayerPosition(x), getPlayerPosition(y), PLAYER_SEL);
+							
+						move = setMove(p,m,d,pcoords[p].y+1,pcoords[p].x-1);
+						writePlayer(getPlayerPosition(getMoveInfo(px)), getPlayerPosition(getMoveInfo(py)), PLAYER_TMP);
+					}
+					
+				if((pcoords[p].x-1 == pcoords[pn].x) && (pcoords[p].y == pcoords[pn].y)
+					&& (pcoords[pn].x == 0 || boardMat[pcoords[pn].x*2-1][pcoords[pn].y*2] == 'X')){
+						if(last_turn == p) writePlayer(getPlayerPosition(x), getPlayerPosition(y), PLAYER_SEL);
+							
+						move = setMove(p,m,d,pcoords[p].y+1,pcoords[p].x-1);
+						writePlayer(getPlayerPosition(getMoveInfo(px)), getPlayerPosition(getMoveInfo(py)), PLAYER_TMP);
+					}
+			break;
 		default:
 			break;
 	}

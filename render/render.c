@@ -142,23 +142,55 @@ void getPossibleMoves(uint16_t color){
 	py = pcoords[turn].y;
 	
 	if(py==pcoords[(!turn & 0x1)].y){
-		if(px+1==pcoords[(!turn & 0x1)].x) skip_rx++;
-		if(px-1==pcoords[(!turn & 0x1)].x) skip_lx--;
+		
+		if(px+1==pcoords[(!turn & 0x1)].x)
+			skip_rx++;
+		if(px-1==pcoords[(!turn & 0x1)].x)
+			skip_lx--;
+		
 	}else if(px==pcoords[(!turn & 0x1)].x){
-		if(py+1==pcoords[(!turn & 0x1)].y) skip_dy++;
-		if(py-1==pcoords[(!turn & 0x1)].y) skip_uy--;
+		
+		if(py+1==pcoords[(!turn & 0x1)].y) 
+			skip_dy++;
+		if(py-1==pcoords[(!turn & 0x1)].y)
+			skip_uy--;
+		
 	}
 		
-	if(px+skip_rx != N_CELLS-1 && boardMat[px*2+1][py*2] == ' ' && boardMat[(px+skip_rx)*2+1][py*2] == ' ') 		//RIGHT
+	if(px+skip_rx != N_CELLS-1 && boardMat[px*2+1][py*2] == ' ' && boardMat[(px+skip_rx)*2+1][py*2] == ' ') {			//RIGHT
 		writePlayer(getPlayerPosition(px+1+skip_rx), getPlayerPosition(py), color);
-	
-	if(px+skip_lx != 0 && boardMat[px*2-1][py*2] == ' ' && boardMat[(px+skip_lx)*2-1][py*2] == ' ') 						//LEFT
+	}else if(px+1 == N_CELLS-1 || boardMat[(px+1)*2+1][py*2] == 'X'){
+		if(py+skip_dy != N_CELLS-1 && boardMat[(px+skip_rx)*2][py*2+1] == ' ') 		//DOWN
+			writePlayer(getPlayerPosition(px+skip_rx), getPlayerPosition(py+1), color);
+		if(py+skip_uy != 0 && boardMat[(px+skip_rx)*2][py*2-1] == ' ') 						//UP
+			writePlayer(getPlayerPosition(px+skip_rx), getPlayerPosition(py-1), color);
+	}
+
+	if(px+skip_lx != 0 && boardMat[px*2-1][py*2] == ' ' && boardMat[(px+skip_lx)*2-1][py*2] == ' '){ 							//LEFT
 		writePlayer(getPlayerPosition(px-1+skip_lx), getPlayerPosition(py), color);
+	}else if(px-1 == 0 || boardMat[(px-1)*2+1][py*2] == 'X'){
+		if(py+skip_dy != N_CELLS-1 && boardMat[(px+skip_lx)*2][py*2+1] == ' ') 		//DOWN
+			writePlayer(getPlayerPosition(px+skip_lx), getPlayerPosition(py+1), color);
+		if(py+skip_uy != 0 && boardMat[(px+skip_lx)*2][py*2-1] == ' ') 						//UP
+			writePlayer(getPlayerPosition(px+skip_lx), getPlayerPosition(py-1), color);
+	}
 
-	if(py+skip_dy != N_CELLS-1 && boardMat[px*2][py*2+1] == ' ' && boardMat[px*2][(py+skip_dy)*2+1] == ' ') 		//DOWN
+	if(py+skip_dy != N_CELLS-1 && boardMat[px*2][py*2+1] == ' ' && boardMat[px*2][(py+skip_dy)*2+1] == ' '){ 			//DOWN
 		writePlayer(getPlayerPosition(px), getPlayerPosition(py+1+skip_dy), color);
+	}else if(py+1 == N_CELLS-1 || boardMat[px*2][(py+1)*2+1] == 'X'){
+		if(px+skip_rx != N_CELLS-1 && boardMat[px*2+1][(py+skip_dy)*2] == ' ') 		//RIGHT
+			writePlayer(getPlayerPosition(px+1), getPlayerPosition(py+skip_dy), color);
+		if(px+skip_lx != 0 && boardMat[px*2-1][(py+skip_dy)*2] == ' ') 						//LEFT
+			writePlayer(getPlayerPosition(px-1), getPlayerPosition(py+skip_dy), color);
+	}
 
-	if(py+skip_uy != 0 && boardMat[px*2][py*2-1] == ' ' && boardMat[px*2][(py+skip_uy)*2-1] == ' ') 						//UP
+	if(py+skip_uy != 0 && boardMat[px*2][py*2-1] == ' ' && boardMat[px*2][(py+skip_uy)*2-1] == ' '){							//UP
 		writePlayer(getPlayerPosition(px), getPlayerPosition(py-1+skip_uy), color);
+	}else if(py-1 == 0 || boardMat[px*2][(py-1)*2+1] == 'X'){
+		if(px+skip_rx != N_CELLS-1 && boardMat[px*2+1][(py+skip_uy)*2] == ' ') 		//RIGHT
+			writePlayer(getPlayerPosition(px+1), getPlayerPosition(py+skip_uy), color);
+		if(px+skip_lx != 0 && boardMat[px*2-1][(py+skip_uy)*2] == ' ') 						//LEFT
+			writePlayer(getPlayerPosition(px-1), getPlayerPosition(py+skip_uy), color);
+	}
 }
 
