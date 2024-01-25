@@ -107,19 +107,11 @@ void RIT_IRQHandler (void)
 
 	
 	if((LPC_GPIO1->FIOPIN & (1<<25)) == 0){	/* Joytick SELECT pressed */
-		select=1;
+		select++;
 		switch(select){
 			case 1:
 				
-				if(isMenu==1){
-					isMenu++;
-					playerChoice();
-				}else if(isMenu==2){
-					isMenu=0;
-					initGame();
-
-				}else if(isMenu==0){
-					
+			if(isMenu==0){
 					if(getMoveInfo(mode)==0){
 						if(getMoveInfo(px)==pcoords[getMoveInfo(player)].x && getMoveInfo(py)==pcoords[getMoveInfo(player)].y)
 							break;

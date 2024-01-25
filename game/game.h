@@ -33,4 +33,5 @@ uint8_t checkFreePath(void);
 uint8_t getMoveInfo(enum en_info info);
 void DFS(uint8_t visited[7][7], uint8_t xMat, uint8_t yMat);
 void sendMove(void);
+void handshake(void);
 void switchPlayer(void);

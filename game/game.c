@@ -572,6 +572,17 @@ uint8_t getMoveInfo(enum en_info info){
 	}
 }
 
+void handshake (void){
+	
+	CAN_TxMsg.data[0] = 1;
+	CAN_TxMsg.len = 1;
+	CAN_TxMsg.format = STANDARD_FORMAT;
+	CAN_TxMsg.type = DATA_FRAME;
+	CAN_TxMsg.id = 1;
+	CAN_wrMsg (1, &CAN_TxMsg); 
+	
+}
+
 void sendMove(void){
 	
 	CAN_TxMsg.data[0] = getMoveInfo(player);

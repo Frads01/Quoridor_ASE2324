@@ -4,17 +4,31 @@
 #include "../timer/timer.h"
 #include "../render/render.h"
 #include "../game/game.h"
+#include "../menu/menu.h"
 
 extern uint8_t zero;
 extern uint8_t one;
 extern uint8_t two;
 
+extern uint8_t isMenu;
+extern enum en_mod gameMode[2];
+
 void EINT0_IRQHandler (void)	  	/* INT0														 */
 {		
-	enable_RIT();
-	NVIC_DisableIRQ(EINT0_IRQn);
-	LPC_PINCON->PINSEL4    &= ~(1 << 20);     /* GPIO pin selection */
-	zero=1;
+
+	if(isMenu == 1 && gameMode[0] != menu_e){
+		handshake();
+		isMenu++;
+		playerChoice();
+	}else if(isMenu == 2 && gameMode[1] != menu_e){
+		isMenu=0;
+		initGame();
+	}else if(isMenu == 0){
+		enable_RIT();
+		NVIC_DisableIRQ(EINT0_IRQn);
+		LPC_PINCON->PINSEL4    &= ~(1 << 20);     /* GPIO pin selection */
+		zero=1;
+	}
 	LPC_SC->EXTINT &= (1 << 0);     /* clear pending interrupt         */
 }
 
