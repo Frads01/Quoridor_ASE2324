@@ -12,3 +12,4 @@
 .\irq_rit.o: RIT\../render/render.h
 .\irq_rit.o: RIT\../timer/timer.h
 .\irq_rit.o: RIT\../GLCD/GLCD.h
+.\irq_rit.o: RIT\../menu/menu.h

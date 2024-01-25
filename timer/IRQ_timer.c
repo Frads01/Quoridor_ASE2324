@@ -22,11 +22,12 @@ extern struct s_coords {
 	uint8_t y;
 } pcoords[2];
 
-extern int8_t time;
+extern int8_t timer;
 extern unsigned int move;
 extern uint8_t last_turn;
 extern unsigned int setMove(uint8_t player, uint8_t mode, uint8_t dir, uint8_t py, uint8_t px);
 extern char buffer[2];
+extern enum en_mod gameMode[2];
 
 /******************************************************************************
 ** Function name:		Timer0_IRQHandler
@@ -40,13 +41,12 @@ extern char buffer[2];
 
 void TIMER0_IRQHandler (void)
 {
-	uint8_t turn;
-	sprintf( (char *) buffer, "%.2d", time);
-	GUIText_X_Center(BOARD_Y+22, (uint8_t *) buffer, Black, White);
+	sprintf( (char *) buffer, "%.2d", timer);
+	GUIText_X_Center(BOARD_Y+22, (uint8_t *) buffer, getMoveInfo(player)==0 ? Black: Red, White);
 
-	time--;
+	timer--;
 
-	if(time<0){
+	if(timer<0){
 		disable_timer(0);
 
 		if(getMoveInfo(mode)==0)
@@ -54,13 +54,7 @@ void TIMER0_IRQHandler (void)
 		else if(getMoveInfo(mode)==1)
 			writeWall(getWallPosition(getMoveInfo(px)), getWallPosition(getMoveInfo(py)), getMoveInfo(dir), White);
 			
-		last_turn = getMoveInfo(player);
-		turn = (!last_turn & 0x1);
-		move = setMove(turn, 0, 1, pcoords[turn].y, pcoords[turn].x);
-		getPossibleMoves(PLAYER_SEL);
-		
-		time = 20;
-		enable_timer(0);
+		switchPlayer();
 	}
 	
   LPC_TIM0->IR = 1;			/* clear interrupt flag */

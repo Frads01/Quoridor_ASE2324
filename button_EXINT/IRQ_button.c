@@ -11,6 +11,7 @@ extern uint8_t two;
 
 void EINT0_IRQHandler (void)	  	/* INT0														 */
 {		
+	enable_RIT();
 	NVIC_DisableIRQ(EINT0_IRQn);
 	LPC_PINCON->PINSEL4    &= ~(1 << 20);     /* GPIO pin selection */
 	zero=1;

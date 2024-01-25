@@ -14,4 +14,7 @@
 .\game.o: game\../GLCD/AsciiLib.h
 .\game.o: C:\Keil_v5\ARM\ARMCLANG5\Bin\..\include\string.h
 .\game.o: game\../timer/timer.h
+.\game.o: game\../CAN/CAN.h
+.\game.o: game\../npc/npc.h
 .\game.o: C:\Keil_v5\ARM\ARMCLANG5\Bin\..\include\stdlib.h
+.\game.o: game\../RIT/RIT.h

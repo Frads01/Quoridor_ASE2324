@@ -15,16 +15,22 @@
 //Numero muri iniziale
 #define PL_INIT_WALLS 8
 
+#define V (N_CELLS*N_CELLS)
+
 //enum usati per:
 // - ottenere info sulla mossa (funzione uint8_t getMoveInfo(enum en_info ino); )
 enum en_info {player, mode, dir, py, px};
 // - rappresentare la direzione scelta
-enum en_dir {up_e, down_e, left_e, right_e, ur_e, ul_e, dr_e, dl_e};
+enum en_dir {up_e, down_e, left_e, right_e, ur_e, ul_e, dr_e, dl_e, center_e};
+// - modalità di gioco (1b, 2b, npc)
+enum en_mod {oneb_e, twob_e, human_e, npc_e, menu_e};
 
 void initGame(void);
 void moveElement(enum en_dir direction);
 void placePlayer(uint16_t newX, uint16_t newY, uint8_t player);
-void placeWall(uint16_t newX, uint16_t newY, uint8_t rotate, uint8_t player);
+uint8_t placeWall(uint16_t newX, uint16_t newY, uint8_t rotate, uint8_t player);
 uint8_t checkFreePath(void);
 uint8_t getMoveInfo(enum en_info info);
 void DFS(uint8_t visited[7][7], uint8_t xMat, uint8_t yMat);
+void sendMove(void);
+void switchPlayer(void);

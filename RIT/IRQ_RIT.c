@@ -13,6 +13,7 @@
 #include "../render/render.h"
 #include "../timer/timer.h"
 #include "../GLCD/GLCD.h"
+#include "../menu/menu.h"
 
 volatile uint8_t zero=0;
 volatile uint8_t one=0;
@@ -25,8 +26,10 @@ extern struct s_coords { //posizioni più recenti dei giocatori dentro la griglia
 	uint8_t y;
 } pcoords[2];
 extern char boardMat[13][13];
-extern int8_t time;
+extern int8_t timer;
 extern uint8_t last_turn;
+extern enum en_mod gameMode[2];
+extern uint8_t isMenu;
 
 extern unsigned int setMove(uint8_t player, uint8_t mode, uint8_t dir, uint8_t py, uint8_t px);
 
@@ -48,18 +51,84 @@ void RIT_IRQHandler (void)
 	static uint8_t right=0;		//28
 	static uint8_t up=0;			//29
 	
+	if(getMoveInfo(mode)==0){
+			if ((LPC_GPIO1->FIOPIN & (1<<26)) == 0 && (LPC_GPIO1->FIOPIN & (1<<27)) == 0){ //Bottom left
+		down++;
+		left++;
+		
+		if(down==1 && left==1){
+			moveElement(dl_e);
+		}
+		
+	} else {
+		down=0;
+		left=0;
+	}
+
+	if ((LPC_GPIO1->FIOPIN & (1<<26)) == 0 && (LPC_GPIO1->FIOPIN & (1<<28)) == 0){ //Bottom right
+		down++;
+		right++;
+		
+		if (down==1 && right==1){
+			moveElement(dr_e);
+		}
+		
+	} else {
+		down=0;
+		right=0;
+	}
+	
+	if ((LPC_GPIO1->FIOPIN & (1<<29)) == 0 && (LPC_GPIO1->FIOPIN & (1<<27)) == 0){ //Top left
+		up++;
+		left++;
+		
+		if (up==1 && left==1) {
+			moveElement(ul_e);
+		}
+		
+	} else {
+		up=0;
+		left=0;
+	}
+	
+	if ((LPC_GPIO1->FIOPIN & (1<<29)) == 0 && (LPC_GPIO1->FIOPIN & (1<<28)) == 0){ //Top right
+		up++;
+		right++;
+		
+		if(up==1 && right==1) {
+			moveElement(ur_e);
+		}
+		
+	} else {
+		up=0;
+		right=0;
+	}
+	}
+
+	
 	if((LPC_GPIO1->FIOPIN & (1<<25)) == 0){	/* Joytick SELECT pressed */
 		select=1;
 		switch(select){
 			case 1:
 				
-				if(getMoveInfo(mode)==0){
-					if(getMoveInfo(px)==pcoords[getMoveInfo(player)].x && getMoveInfo(py)==pcoords[getMoveInfo(player)].y)
-						break;
+				if(isMenu==1){
+					isMenu++;
+					playerChoice();
+				}else if(isMenu==2){
+					isMenu=0;
+					initGame();
+
+				}else if(isMenu==0){
 					
-					placePlayer(getMoveInfo(px), getMoveInfo(py), getMoveInfo(player));
-				}else{
-					placeWall(getMoveInfo(px), getMoveInfo(py), getMoveInfo(dir), getMoveInfo(player));
+					if(getMoveInfo(mode)==0){
+						if(getMoveInfo(px)==pcoords[getMoveInfo(player)].x && getMoveInfo(py)==pcoords[getMoveInfo(player)].y)
+							break;
+						
+						placePlayer(getMoveInfo(px), getMoveInfo(py), getMoveInfo(player));
+					}else{
+						placeWall(getMoveInfo(px), getMoveInfo(py), getMoveInfo(dir), getMoveInfo(player));
+					}
+					
 				}
 				
 				break;
@@ -72,7 +141,33 @@ void RIT_IRQHandler (void)
 		down++;
 		switch(down){
 			case 1:
-				moveElement(down_e);
+				if(isMenu==1){
+					if(gameMode[0] != twob_e){
+						if(gameMode[0] != menu_e){
+							LCD_DrawRectFilled((MAX_SCREEN_X-112)/2, MAX_SCREEN_Y/2 - 3 - 31, (MAX_SCREEN_X-16)/2, 30, White);
+							GUI_Text(GUIText_CenterCX((uint8_t *) boards_text[1]), MAX_SCREEN_Y/2 - 3 - 24, (uint8_t *) boards_text[1], Black, White);
+						}
+						gameMode[0] = twob_e;
+						LCD_DrawRectFilled((MAX_SCREEN_X-112)/2, MAX_SCREEN_Y/2 + 3 + 1, (MAX_SCREEN_X-16)/2, 30, Yellow);
+						GUI_Text(GUIText_CenterCX((uint8_t *) boards_text[2]), MAX_SCREEN_Y/2 + 3 + 8, (uint8_t *) boards_text[2], Black, Yellow);
+					}
+
+				}else if (isMenu==2){
+					
+					if(gameMode[1] != npc_e){
+						if(gameMode[1] != menu_e){
+							LCD_DrawRectFilled((MAX_SCREEN_X-112)/2, MAX_SCREEN_Y/2 - 3 - 31, (MAX_SCREEN_X-16)/2, 30, White);
+							GUI_Text(GUIText_CenterCX((uint8_t *) player_text[2]), MAX_SCREEN_Y/2 - 3 - 24, (uint8_t *) player_text[2], Black, White);
+						}
+						gameMode[1] = npc_e;
+						LCD_DrawRectFilled((MAX_SCREEN_X-112)/2, MAX_SCREEN_Y/2 + 3 + 1, (MAX_SCREEN_X-16)/2, 30, Yellow);
+						GUI_Text(GUIText_CenterCX((uint8_t *) player_text[3]), MAX_SCREEN_Y/2 + 3 + 8, (uint8_t *) player_text[3], Black, Yellow);
+
+					}
+
+				}else if (isMenu == 0){
+					moveElement(down_e);
+				}
 				break;
 			default:
 				break;
@@ -105,64 +200,40 @@ void RIT_IRQHandler (void)
 		up++;
 		switch(up){
 			case 1:
-			moveElement(up_e);
+				if(isMenu==1){
+					
+					if(gameMode[0] != oneb_e){
+						if(gameMode[0] != menu_e){
+							LCD_DrawRectFilled((MAX_SCREEN_X-112)/2, MAX_SCREEN_Y/2 + 3 + 1, (MAX_SCREEN_X-16)/2, 30, White);	
+							GUI_Text(GUIText_CenterCX((uint8_t *) boards_text[2]), MAX_SCREEN_Y/2 + 3 + 8, (uint8_t *) boards_text[2], Black, White);
+						}
+						gameMode[0] = oneb_e;
+						LCD_DrawRectFilled((MAX_SCREEN_X-112)/2, MAX_SCREEN_Y/2 - 3 - 31, (MAX_SCREEN_X-16)/2, 30, Yellow);
+						GUI_Text(GUIText_CenterCX((uint8_t *) boards_text[1]), MAX_SCREEN_Y/2 - 3 - 24, (uint8_t *) boards_text[1], Black, Yellow);
+					}
+
+					
+				}else if (isMenu==2){
+					
+					if(gameMode[1] != human_e){
+						if(gameMode[0] != menu_e){
+							LCD_DrawRectFilled((MAX_SCREEN_X-112)/2, MAX_SCREEN_Y/2 + 3 + 1, (MAX_SCREEN_X-16)/2, 30, White);
+							GUI_Text(GUIText_CenterCX((uint8_t *) player_text[3]), MAX_SCREEN_Y/2 + 3 + 8, (uint8_t *) player_text[3], Black, White);
+						}
+						gameMode[1] = human_e;
+						LCD_DrawRectFilled((MAX_SCREEN_X-112)/2, MAX_SCREEN_Y/2 - 3 - 31, (MAX_SCREEN_X-16)/2, 30, Yellow);
+						GUI_Text(GUIText_CenterCX((uint8_t *) player_text[2]), MAX_SCREEN_Y/2 - 3 - 24, (uint8_t *) player_text[2], Black, Yellow);
+					}
+
+					
+				}else if (isMenu == 0){
+					moveElement(up_e);
+				}
 				break;
 			default:
 				break;
 		}
 	}else	up=0;
-	
-	if ((LPC_GPIO1->FIOPIN & (1<<26)) == 0 && (LPC_GPIO1->FIOPIN & (1<<27))){ //Bottom left
-		down++;
-		left++;
-		
-		if(down==1 && left==1){
-			moveElement(dl_e);
-		}
-		
-	} else {
-		down=0;
-		left=0;
-	}
-
-	if ((LPC_GPIO1->FIOPIN & (1<<26)) == 0 && (LPC_GPIO1->FIOPIN & (1<<28))){ //Bottom right
-		down++;
-		right++;
-		
-		if (down==1 && right==1){
-			moveElement(dr_e);
-		}
-		
-	} else {
-		down=0;
-		right=0;
-	}
-	
-	if ((LPC_GPIO1->FIOPIN & (1<<29)) == 0 && (LPC_GPIO1->FIOPIN & (1<<27))){ //Top left
-		up++;
-		left++;
-		
-		if (up==1 && left==1) {
-			moveElement(ul_e);
-		}
-		
-	} else {
-		up=0;
-		left=0;
-	}
-	
-	if ((LPC_GPIO1->FIOPIN & (1<<29)) == 0 && (LPC_GPIO1->FIOPIN & (1<<28))){ //Top right
-		up++;
-		right++;
-		
-		if(up==1 && right==1) {
-			moveElement(ur_e);
-		}
-		
-	} else {
-		up=0;
-		right=0;
-	}
 	
 	if(zero>=1){
 		if((LPC_GPIO2->FIOPIN & (1<<10)) == 0){
@@ -189,8 +260,6 @@ void RIT_IRQHandler (void)
 				case 2:
 					if(getMoveInfo(mode)==0){
 						if(n_walls[getMoveInfo(player)]>0){
-
-							
 							getPossibleMoves(Black);
 							
 							move = setMove(getMoveInfo(player), 1, 0, WALL_INIT_POS_Y, WALL_INIT_POS_X);

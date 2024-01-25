@@ -6,13 +6,17 @@
 #include "../GLCD/GLCD.h"
 #include "../GLCD/AsciiLib.h"
 #include "../timer/timer.h"
-
+#include "../CAN/CAN.h"
+#include "../npc/npc.h"
 #include "stdlib.h"
+#include "../RIT/RIT.h"
 
 volatile unsigned int move;
-volatile int8_t time;
+volatile int8_t timer;
 volatile uint8_t last_turn;
 volatile uint8_t wallIndex;
+volatile uint8_t can_turn;
+volatile uint8_t npc_turn;
 
 volatile struct s_coordsw {
 	uint8_t x;
@@ -26,9 +30,12 @@ volatile struct s_coords { //posizioni più recenti dei giocatori dentro la grigl
 } pcoords[2];
 
 volatile uint8_t n_walls[2]; //conteggio muri
-
 volatile char buffer[2]; //per stampa testo a schermo
 volatile char boardMat[13][13]; //matrice di gioco
+volatile enum en_mod gameMode[2];
+volatile uint8_t graph[V][V];
+volatile uint8_t CAN;
+volatile enum en_dir selectedDir;
 
 extern unsigned int setMove(uint8_t player, uint8_t mode, uint8_t dir, uint8_t py, uint8_t px);
 
@@ -42,8 +49,22 @@ void initGame(void){
 	initBG();
 
 	wallIndex = 0;
-	time = 20;
+	timer = 20;
 	last_turn = 0xFF;
+	can_turn = 0;
+	npc_turn = 0;
+	selectedDir = center_e;
+
+	//GRAPH INIT (usato per NPC)
+	for(i=0; i<V; i++){
+		for(j=0; j<V; j++){
+			if(j==i+1 || j==i-1 || j==i+7 || j==i-7){
+				graph[i][j]=1;
+			}else{
+				graph[i][j]=0;
+			}
+		}
+	}
 	
   for (i = 0; i < 13; i++) 
     for (j = 0; j < 13; j++) 
@@ -74,6 +95,9 @@ void initGame(void){
 	move = setMove(0, 0, 0, PL0_INIT_POS_Y, PL0_INIT_POS_X);
 	initGameScreen();
 	
+	NVIC_EnableIRQ(EINT1_IRQn);
+	NVIC_EnableIRQ(EINT2_IRQn);
+	
 	enable_timer(0);
 	
 }
@@ -94,9 +118,10 @@ void moveElement(enum en_dir direction){
 	switch(direction){
 		case down_e:
 			
-				if(m==0){
-					if((pcoords[p].x==pcoords[(!p & 0x1)].x)
-						&& (pcoords[p].y+1==pcoords[(!p & 0x1)].y)) skip++;
+				if(m==0 && selectedDir != down_e){
+					if((pcoords[p].x==pcoords[pn].x) && (pcoords[p].y+1==pcoords[pn].y)) {
+						skip++;
+					}
 					
 					if(pcoords[p].y+skip<N_CELLS-1){
 						if(boardMat[pcoords[p].x*2][(pcoords[p].y+skip)*2+1]==' '
@@ -105,6 +130,7 @@ void moveElement(enum en_dir direction){
 						
 							move = setMove(p,m,d,pcoords[p].y+1+skip,pcoords[p].x);
 							writePlayer(getPlayerPosition(getMoveInfo(px)), getPlayerPosition(getMoveInfo(py)), PLAYER_TMP);
+							selectedDir = down_e;
 						}
 					}
 				}else if (m==1){
@@ -121,10 +147,11 @@ void moveElement(enum en_dir direction){
 				
 		case up_e:
 			
-				if(m==0){
+				if(m==0 && selectedDir != up_e){
 					
-					if((pcoords[p].x==pcoords[(!p & 0x1)].x)
-						&& (pcoords[p].y-1==pcoords[(!p & 0x1)].y)) skip++;
+					if((pcoords[p].x==pcoords[pn].x) && (pcoords[p].y-1==pcoords[pn].y)){
+						skip++;
+					}
 					
 					if(pcoords[p].y-skip>0){
 						if(boardMat[pcoords[p].x*2][(pcoords[p].y-skip)*2-1]==' '
@@ -133,6 +160,7 @@ void moveElement(enum en_dir direction){
 
 							move = setMove(p,m,d,pcoords[p].y-1-skip,pcoords[p].x);
 							writePlayer(getPlayerPosition(getMoveInfo(px)), getPlayerPosition(getMoveInfo(py)), PLAYER_TMP);
+							selectedDir = up_e;
 						}
 					}
 				}else if (m==1){
@@ -148,10 +176,11 @@ void moveElement(enum en_dir direction){
 		
 		case left_e:
 			
-				if(m==0){
+				if(m==0 && selectedDir != left_e){
 					
-					if((pcoords[p].y==pcoords[(!p & 0x1)].y)
-						&& (pcoords[p].x-1==pcoords[(!p & 0x1)].x)) skip++;
+					if((pcoords[p].y==pcoords[pn].y) && (pcoords[p].x-1==pcoords[pn].x)){
+						skip++;
+					}
 					
 					if(pcoords[p].x-skip>0){
 						if(boardMat[(pcoords[p].x-skip)*2-1][pcoords[p].y*2]==' '
@@ -160,6 +189,7 @@ void moveElement(enum en_dir direction){
 														
 							move = setMove(p,m,d,pcoords[p].y,pcoords[p].x-1-skip);
 							writePlayer(getPlayerPosition(getMoveInfo(px)), getPlayerPosition(getMoveInfo(py)), PLAYER_TMP);
+							selectedDir = left_e;
 						}
 					}
 				}else if (m==1){
@@ -175,11 +205,11 @@ void moveElement(enum en_dir direction){
 		
 		case right_e:
 			
-				if(m==0){
+				if(m==0 && selectedDir != right_e){
 					
-					if((pcoords[p].y==pcoords[pn].y)
-						&& (pcoords[p].x+1==pcoords[pn].x)) skip++;
-					
+					if((pcoords[p].y==pcoords[pn].y) && (pcoords[p].x+1==pcoords[pn].x)) {
+						skip++;
+					}					
 					if(pcoords[p].x+skip<N_CELLS-1){
 						if(boardMat[(pcoords[p].x+skip)*2+1][pcoords[p].y*2]==' '
 							&& boardMat[pcoords[p].x*2+1][pcoords[p].y*2]==' '){
@@ -187,6 +217,7 @@ void moveElement(enum en_dir direction){
 							
 							move = setMove(p,m,d,pcoords[p].y,pcoords[p].x+1+skip);
 							writePlayer(getPlayerPosition(getMoveInfo(px)), getPlayerPosition(getMoveInfo(py)), PLAYER_TMP);
+							selectedDir = right_e;
 						}
 					}
 				}else if (m==1){
@@ -198,106 +229,137 @@ void moveElement(enum en_dir direction){
 					}
 				}
 			break;
-		
+				
+				/* DIAGONAL MOVES */
 		
 		case ur_e:
-			if(m==0){
+			if(m==0 && selectedDir != ur_e){
 				if((pcoords[p].x == pcoords[pn].x) && (pcoords[p].y-1 == pcoords[pn].y)
-					&& (pcoords[pn].y == 0 || boardMat[pcoords[pn].x*2][pcoords[pn].y*2-1] == 'X')){
+					&& !(pcoords[pn].x == N_CELLS-1 || boardMat[pcoords[pn].x*2+1][pcoords[pn].y*2] == 'X')){
 						if(last_turn == p) writePlayer(getPlayerPosition(x), getPlayerPosition(y), PLAYER_SEL);
 							
 						move = setMove(p,m,d,pcoords[p].y-1,pcoords[p].x+1);
 						writePlayer(getPlayerPosition(getMoveInfo(px)), getPlayerPosition(getMoveInfo(py)), PLAYER_TMP);
+						selectedDir = ur_e;
 					}
 					
 				if((pcoords[p].x+1 == pcoords[pn].x) && (pcoords[p].y == pcoords[pn].y)
-					&& (pcoords[pn].x == N_CELLS-1 || boardMat[pcoords[pn].x*2+1][pcoords[pn].y*2] == 'X')){
+					&& !(pcoords[pn].y == 0 || boardMat[pcoords[pn].x*2][pcoords[pn].y*2-1] == 'X')){
 						if(last_turn == p) writePlayer(getPlayerPosition(x), getPlayerPosition(y), PLAYER_SEL);
 							
 						move = setMove(p,m,d,pcoords[p].y-1,pcoords[p].x+1);
 						writePlayer(getPlayerPosition(getMoveInfo(px)), getPlayerPosition(getMoveInfo(py)), PLAYER_TMP);
+						selectedDir = ur_e;
 					}
+					
 			}
 			break;
 		
 		case ul_e:
-			if(m==0){
+			if(m==0 && selectedDir != ul_e){
 				if((pcoords[p].x == pcoords[pn].x) && (pcoords[p].y-1 == pcoords[pn].y)
-					&& (pcoords[pn].y == 0 || boardMat[pcoords[pn].x*2][pcoords[pn].y*2-1] == 'X')){
+					&& !(pcoords[pn].x == 0 || boardMat[pcoords[pn].x*2-1][pcoords[pn].y*2] == 'X')){
 						if(last_turn == p) writePlayer(getPlayerPosition(x), getPlayerPosition(y), PLAYER_SEL);
 							
 						move = setMove(p,m,d,pcoords[p].y-1,pcoords[p].x-1);
 						writePlayer(getPlayerPosition(getMoveInfo(px)), getPlayerPosition(getMoveInfo(py)), PLAYER_TMP);
+						selectedDir = ul_e;
 					}
 					
 				if((pcoords[p].x-1 == pcoords[pn].x) && (pcoords[p].y == pcoords[pn].y)
-					&& (pcoords[pn].x == 0 || boardMat[pcoords[pn].x*2-1][pcoords[pn].y*2] == 'X')){
+					&& !(pcoords[pn].y == 0 || boardMat[pcoords[pn].x*2][pcoords[pn].y*2-1] == 'X')){
 						if(last_turn == p) writePlayer(getPlayerPosition(x), getPlayerPosition(y), PLAYER_SEL);
 							
 						move = setMove(p,m,d,pcoords[p].y-1,pcoords[p].x-1);
 						writePlayer(getPlayerPosition(getMoveInfo(px)), getPlayerPosition(getMoveInfo(py)), PLAYER_TMP);
+						selectedDir = ul_e;
 					}
 			}
 			break;
 		
 		case dr_e:
-			if(m==0){
+			if(m==0 && selectedDir != dr_e){
 				if((pcoords[p].x == pcoords[pn].x) && (pcoords[p].y+1 == pcoords[pn].y)
-					&& (pcoords[pn].y == N_CELLS-1 || boardMat[pcoords[pn].x*2][pcoords[pn].y*2+1] == 'X')){
+					&& !(pcoords[pn].x == N_CELLS-1 || boardMat[pcoords[pn].x*2+1][pcoords[pn].y*2] == 'X')){
 						if(last_turn == p) writePlayer(getPlayerPosition(x), getPlayerPosition(y), PLAYER_SEL);
 							
 						move = setMove(p,m,d,pcoords[p].y+1,pcoords[p].x+1);
 						writePlayer(getPlayerPosition(getMoveInfo(px)), getPlayerPosition(getMoveInfo(py)), PLAYER_TMP);
+						selectedDir = dr_e;
 					}
 					
 				if((pcoords[p].x+1 == pcoords[pn].x) && (pcoords[p].y == pcoords[pn].y)
-					&& (pcoords[pn].x == N_CELLS-1 || boardMat[pcoords[pn].x*2+1][pcoords[pn].y*2] == 'X')){
+					&& !(pcoords[pn].y == N_CELLS-1 || boardMat[pcoords[pn].x*2][pcoords[pn].y*2+1] == 'X')){
 						if(last_turn == p) writePlayer(getPlayerPosition(x), getPlayerPosition(y), PLAYER_SEL);
 							
 						move = setMove(p,m,d,pcoords[p].y+1,pcoords[p].x+1);
 						writePlayer(getPlayerPosition(getMoveInfo(px)), getPlayerPosition(getMoveInfo(py)), PLAYER_TMP);
+						selectedDir = dr_e;
 					}
 			}
 			break;
 		
 		case dl_e:
+			if(m==0 && selectedDir != dl_e){
 				if((pcoords[p].x == pcoords[pn].x) && (pcoords[p].y+1 == pcoords[pn].y)
-					&& (pcoords[pn].y == N_CELLS-1 || boardMat[pcoords[pn].x*2][pcoords[pn].y*2+1] == 'X')){
+					&& !(pcoords[pn].x == 0 || boardMat[pcoords[pn].x*2-1][pcoords[pn].y*2] == 'X')){
 						if(last_turn == p) writePlayer(getPlayerPosition(x), getPlayerPosition(y), PLAYER_SEL);
 							
 						move = setMove(p,m,d,pcoords[p].y+1,pcoords[p].x-1);
 						writePlayer(getPlayerPosition(getMoveInfo(px)), getPlayerPosition(getMoveInfo(py)), PLAYER_TMP);
+						selectedDir = dl_e;
 					}
 					
 				if((pcoords[p].x-1 == pcoords[pn].x) && (pcoords[p].y == pcoords[pn].y)
-					&& (pcoords[pn].x == 0 || boardMat[pcoords[pn].x*2-1][pcoords[pn].y*2] == 'X')){
+					&& !(pcoords[pn].y == N_CELLS-1 || boardMat[pcoords[pn].x*2][pcoords[pn].y*2+1] == 'X')){
 						if(last_turn == p) writePlayer(getPlayerPosition(x), getPlayerPosition(y), PLAYER_SEL);
 							
 						move = setMove(p,m,d,pcoords[p].y+1,pcoords[p].x-1);
 						writePlayer(getPlayerPosition(getMoveInfo(px)), getPlayerPosition(getMoveInfo(py)), PLAYER_TMP);
+						selectedDir = dl_e;
 					}
+			}
 			break;
+				
 		default:
 			break;
 	}
 	
 
 	
-	if(last_turn != p)
+	if(last_turn != p && (getMoveInfo(px) != pcoords[p].x || getMoveInfo(py) != pcoords[p].y)){
 		last_turn = p;
+	}
 	
+	if(gameMode[1] == human_e && gameMode[0] == twob_e) sendMove(); //CAN
 }
 
 void placePlayer(uint16_t newX, uint16_t newY, uint8_t player){
-	uint8_t next_turn;
 	uint8_t flag = 0;
-	
-	last_turn = player;
-	next_turn = (!last_turn & 0x1);
-	
+
 	disable_timer(0);
 		
-	getPossibleMoves(Black);
+	if(pcoords[player].x != 0){
+		graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x-1+pcoords[player].y*7] = 1;
+		graph[pcoords[player].x-1+pcoords[player].y*7][pcoords[player].x+pcoords[player].y*7] = 1;
+	}
+	
+	if(pcoords[player].x != N_CELLS-1){
+		graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x+1+pcoords[player].y*7] = 1;
+		graph[pcoords[player].x+1+pcoords[player].y*7][pcoords[player].x+pcoords[player].y*7] = 1;
+	}
+		
+	if(pcoords[player].y != 0){
+		graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x+(pcoords[player].y-1)*7] = 1;
+		graph[pcoords[player].x+(pcoords[player].y-1)*7][pcoords[player].x+pcoords[player].y*7] = 1;
+	}
+	
+	if(pcoords[player].y != N_CELLS-1){
+		graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x+(pcoords[player].y+1)*7] = 1;
+		graph[pcoords[player].x+(pcoords[player].y+1)*7][pcoords[player].x+pcoords[player].y*7] = 1;
+	}
+	
+	if(npc_turn != 1) getPossibleMoves(Black);
 	writePlayer(getPlayerPosition(pcoords[player].x), getPlayerPosition(pcoords[player].y), Black);
 	writePlayer(getPlayerPosition(newX), getPlayerPosition(newY), player==0 ? PLAYER1_COL : PLAYER2_COL);
 		
@@ -306,27 +368,48 @@ void placePlayer(uint16_t newX, uint16_t newY, uint8_t player){
 		
 	pcoords[player].x=newX;
 	pcoords[player].y=newY;
+	
+	if(pcoords[player].x != 0){
+		graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x-1+pcoords[player].y*7] = 0;
+		graph[pcoords[player].x-1+pcoords[player].y*7][pcoords[player].x+pcoords[player].y*7] = 0;
+	}
+	
+	if(pcoords[player].x != N_CELLS-1){
+		graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x+1+pcoords[player].y*7] = 0;
+		graph[pcoords[player].x+1+pcoords[player].y*7][pcoords[player].x+pcoords[player].y*7] = 0;
+	}
+		
+	if(pcoords[player].y != 0){
+		graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x+(pcoords[player].y-1)*7] = 0;
+		graph[pcoords[player].x+(pcoords[player].y-1)*7][pcoords[player].x+pcoords[player].y*7] = 0;
+	}
+	
+	if(pcoords[player].y != N_CELLS-1){
+		graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x+(pcoords[player].y+1)*7] = 0;
+		graph[pcoords[player].x+(pcoords[player].y+1)*7][pcoords[player].x+pcoords[player].y*7] = 0;
+	}
 		
 	if ((player==0 && newY==0)||(player==1 && newY==6)){
 		
 		GUIText_X_Center(BOARD_Y+44, (uint8_t *) (player==0 ? "--- P1 VICTORY ---" : "--- P2 VICTORY ---"), player==0 ? Black : Red, White);
 		GUIText_X_Center(BOARD_Y+60, (uint8_t *) "HOLD INT0 TO START", Black, White);
 		
+		//NVIC_DisableIRQ(EINT1_IRQn);
+		//NVIC_DisableIRQ(EINT2_IRQn);
+		
 		flag++;
 	}
 	
 	if(flag==0){
-		move = setMove(next_turn, 0, 0, pcoords[next_turn].y, pcoords[next_turn].x);
-		getPossibleMoves(PLAYER_SEL);
-		time = 20;
-		enable_timer(0);
+		switchPlayer();
 	}else{
+		disable_RIT();
 		disable_timer(0);
 		reset_timer(0);
 	}
 }
 
-void placeWall(uint16_t px, uint16_t py, uint8_t rotate, uint8_t player){
+uint8_t placeWall(uint16_t px, uint16_t py, uint8_t rotate, uint8_t player){
 	short int i, pxMat, pyMat;
 	
 	pxMat = px*2+1; //coordinate
@@ -338,10 +421,12 @@ void placeWall(uint16_t px, uint16_t py, uint8_t rotate, uint8_t player){
 		
 		case 1:
 			if (!(boardMat[pxMat-1][pyMat]==' ' && boardMat[pxMat][pyMat]==' ' && boardMat[pxMat+1][pyMat]==' ')) {
-				enable_timer(0);
-				GUIText_X_Center(BOARD_Y+52, (uint8_t *) "INVALID WALL PLACEMENT", player==0? Black : Red, White);
-				enable_timer(1);
-				return;
+				if(npc_turn != 1 && can_turn != 1){
+					GUIText_X_Center(BOARD_Y+52, (uint8_t *) "INVALID WALL PLACEMENT", player==0? Black : Red, White);
+					enable_timer(0);
+					enable_timer(1);
+				}
+				return 0;
 			}
 			
 			for(i=-1; i<=1; i++)
@@ -350,11 +435,14 @@ void placeWall(uint16_t px, uint16_t py, uint8_t rotate, uint8_t player){
 		break;
 			
 		case 0:
+
 			if (!(boardMat[pxMat][pyMat-1]==' ' && boardMat[pxMat][pyMat]==' ' && boardMat[pxMat][pyMat+1]==' ')) {
-				enable_timer(0);
-				GUIText_X_Center(BOARD_Y+52, (uint8_t *) "INVALID WALL PLACEMENT", player==0? Black : Red, White);
-				enable_timer(1);
-				return;
+				if(npc_turn != 1 && can_turn != 1){
+					GUIText_X_Center(BOARD_Y+52, (uint8_t *) "INVALID WALL PLACEMENT", player==0? Black : Red, White);
+					enable_timer(0);
+					enable_timer(1);
+				}
+				return 0;
 			}
 			for(i=-1; i<=1; i++)
 				boardMat[pxMat][pyMat+i]='X';
@@ -364,9 +452,11 @@ void placeWall(uint16_t px, uint16_t py, uint8_t rotate, uint8_t player){
 	}
 	
 	if(checkFreePath()==0){
-		enable_timer(0);
-		GUIText_X_Center(BOARD_Y+52, (uint8_t *) "INVALID WALL PLACEMENT", player==0? Black : Red, White);
-		enable_timer(1);
+		if(npc_turn != 1 && can_turn != 1){
+			GUIText_X_Center(BOARD_Y+52, (uint8_t *) "INVALID WALL PLACEMENT", player==0? Black : Red, White);
+			enable_timer(0);
+			enable_timer(1);
+		}
 		
 		if(rotate==0){
 			for(i=-1; i<=1; i++)
@@ -376,7 +466,7 @@ void placeWall(uint16_t px, uint16_t py, uint8_t rotate, uint8_t player){
 				boardMat[pxMat+i][pyMat]=' ';
 		}
 		
-		return;
+		return 0;
 	}
 	
 	walls[wallIndex].x = px;
@@ -385,22 +475,36 @@ void placeWall(uint16_t px, uint16_t py, uint8_t rotate, uint8_t player){
 	wallIndex++;
 	
 	writeWall(getWallPosition(px),getWallPosition(py), rotate, WALL_COL);
-	
 	n_walls[player]--;
+	
+	if(rotate==0){ //mettendo un muro, rimuovo un arco dal grafo
+		
+//									|						 |									 |						|
+//									V						 V									 V						V
+		graph[(((px*2+1)-1)+((py*2+1)-1)*7)/2][(((px*2+1)+1)+((py*2+1)-1)*7)/2]=0;
+		graph[(((px*2+1)+1)+((py*2+1)-1)*7)/2][(((px*2+1)-1)+((py*2+1)-1)*7)/2]=0;
+		
+		graph[(((px*2+1)-1)+((py*2+1)+1)*7)/2][(((px*2+1)+1)+((py*2+1)+1)*7)/2]=0;
+		graph[(((px*2+1)+1)+((py*2+1)+1)*7)/2][(((px*2+1)-1)+((py*2+1)+1)*7)/2]=0;
+		
+	}else{
+		
+		graph[(((px*2+1)-1)+((py*2+1)+1)*7)/2][(((px*2+1)-1)+((py*2+1)-1)*7)/2]=0;
+		graph[(((px*2+1)-1)+((py*2+1)-1)*7)/2][(((px*2+1)-1)+((py*2+1)+1)*7)/2]=0;
+		
+		graph[(((px*2+1)+1)+((py*2+1)+1)*7)/2][(((px*2+1)+1)+((py*2+1)-1)*7)/2]=0;
+		graph[(((px*2+1)+1)+((py*2+1)-1)*7)/2][(((px*2+1)+1)+((py*2+1)+1)*7)/2]=0;
+		
+	}
 	
 	sprintf( (char *) buffer, "%.2d", n_walls[0]);
 	GUI_Text(GUIText_CenterCX((uint8_t *) buffer)-80, BOARD_Y+22, (uint8_t *) buffer, Black, White);
 	sprintf( (char *) buffer, "%.2d", n_walls[1]);
 	GUI_Text(GUIText_CenterCX((uint8_t *) buffer)+80, BOARD_Y+22, (uint8_t *) buffer, Black, White);
 	
-	last_turn = player;
-	move = setMove((!player & 0x1), 0, 0, pcoords[(!player & 0x1)].y, pcoords[(!player & 0x1)].x);
-	getPossibleMoves(PLAYER_SEL);
-	time = 20;
-	reset_timer(0);
-	enable_timer(0);
+	switchPlayer();
 	
-	return;
+	return 1;
 }
 
 uint8_t checkFreePath(void){
@@ -466,4 +570,57 @@ uint8_t getMoveInfo(enum en_info info){
 		default:
 			return 0xFF;
 	}
+}
+
+void sendMove(void){
+	
+	CAN_TxMsg.data[0] = getMoveInfo(player);
+	CAN_TxMsg.data[1] = (getMoveInfo(mode) << 8) | getMoveInfo(dir);
+	CAN_TxMsg.data[2] = getMoveInfo(py);
+	CAN_TxMsg.data[3] = getMoveInfo(px);
+	CAN_TxMsg.len = 4;
+	CAN_TxMsg.format = STANDARD_FORMAT;
+	CAN_TxMsg.type = DATA_FRAME;
+	CAN_TxMsg.id = getMoveInfo(player)==0 ? 2 : 1;
+	CAN_wrMsg (getMoveInfo(player)==0 ? 1 : 2, &CAN_TxMsg);               /* transmit message */
+
+}
+void switchPlayer(void){
+	uint8_t p, pn;
+	
+	if(npc_turn == 1){
+		npc_turn = 0;
+		return;
+	}
+	
+	p = getMoveInfo(player);
+	pn = (!p & 0x1);
+	
+	if(gameMode[0]==twob_e && gameMode[1]==human_e && can_turn==0){
+
+		can_turn = 1;
+		sendMove(); //CAN
+
+		return;
+	}
+	
+	if(gameMode[0]==oneb_e && gameMode[1]==npc_e && npc_turn==0){
+		last_turn = p;
+		move = setMove(pn, 0, 0, pcoords[pn].y, pcoords[pn].x);
+		
+		npc_turn = 1;
+		NPC_func();
+	
+		p = getMoveInfo(player);
+		pn = (!p & 0x1);
+	}
+	
+	can_turn = 0;
+	last_turn = p;
+	move = setMove(pn, 0, 0, pcoords[pn].y, pcoords[pn].x);
+	getPossibleMoves(PLAYER_SEL);
+	timer = 20;
+	selectedDir = center_e;
+	reset_timer(0);
+	enable_timer(0);
 }

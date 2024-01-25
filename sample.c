@@ -9,6 +9,8 @@
 #include "RIT/RIT.h"
 #include "button_EXINT/button.h"
 #include "joystick/joystick.h"
+#include "CAN/CAN.h"
+#include "menu/menu.h"
 
 #define SIMULATOR 1
 
@@ -17,31 +19,23 @@
 extern uint8_t ScaleFlag; // <- ScaleFlag needs to visible in order for the emulator to find the symbol (can be placed also inside system_LPC17xx.h but since it is RO, it needs more work)
 #endif
 
-extern int8_t time;
+extern int8_t timer;
+extern enum en_mod gameMode[2];
+extern uint8_t CAN;
 	
-int main(void){
-	int i, j;
-	
+int main(void){	
  	SystemInit();  												/* System Initialization (i.e., PLL)  */
   LCD_Initialization();
 	BUTTON_init();
 	joystick_init();
+	CAN_Init();
 	init_RIT(0x004C4B40);									/* RIT Initialization 50 msec       */
 	init_timer(0, 0x017D7840);						/* 1s, per il timer di 20 secondi */
 	init_timer(1, 0x047868C0);						/* 3s, per la comparsa a schermo di testi */
+	
 	enable_RIT();
 	
-	LCD_Clear(Blue);
-
-	for(i=0; i<TITLE_WIDTH; i++)
-		for(j=0; j<TITLE_HEIGHT; j++)
-			LCD_SetPoint(0+i, 16+j, TITLE_PIXEL_DATA[i+TITLE_WIDTH*j]);
-	
-	GUIText_X_Center(66, (uint8_t *) "HOLD INT0 TO START", White, Blue);
-	
-	LCD_DrawRectFilled(0, MAX_SCREEN_Y-54, MAX_SCREEN_X, 32, Black);
-	GUIText_X_Center(MAX_SCREEN_Y-54, (uint8_t *) "DI SANTO FRANCESCO", White, Black);
-	GUIText_X_Center(MAX_SCREEN_Y-38, (uint8_t *) "S331336", White, Black);
+	generateMenu();
 	
 	NVIC_DisableIRQ(EINT1_IRQn);
 	NVIC_DisableIRQ(EINT2_IRQn);
