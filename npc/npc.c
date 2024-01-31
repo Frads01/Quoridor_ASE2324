@@ -28,7 +28,7 @@ extern struct s_coords { //posizioni più recenti dei giocatori dentro la griglia
 } pcoords[2];
 
 extern uint8_t n_walls[2]; //conteggio muri
-extern char buffer[2]; //per stampa testo a schermo
+extern char buffer[4]; //per stampa testo a schermo
 extern char boardMat[13][13]; //matrice di gioco
 extern enum en_mod gameMode[2];
 extern uint8_t graph[V][V];
@@ -43,19 +43,19 @@ static uint8_t moveCount, lastMove=0xFF;
 void NPC_func(void){
 	
 	uint8_t m;
+	
 	srand(LPC_RIT->RICOUNTER);
 	m = (rand() % 2);
-	
-	if(lastMove != m) {
-		moveCount = 1;
-		lastMove = m;
-	} else moveCount++;
 	
 	//l'npc può muovere la pedina/mettere un muro massimo 2 volte di fila
 	if(moveCount == 3) {
 		m = (m == 0 ? 1 : 0);
 		moveCount = 1;
-	}
+		lastMove = m;
+	} else if(lastMove != m) {
+		moveCount = 1;
+		lastMove = m;
+	} else moveCount++;
 	
 	if (m==0) generateMove();
 	if (m==1 && n_walls[getMoveInfo(player)]>0) generateWall();
@@ -69,7 +69,8 @@ void generateWall(void){
 		cx = rand() % 6;
 		cy = rand() % 6;
 		crot = rand() % 2;
-	} while (pcoords[(!getMoveInfo(player) & 0x1)].y >= cy && !placeWall(cx, cy, crot, getMoveInfo(player)));
+		// piazza il muro solo sopra il giocatore 0
+	} while (placeWall(cx, cy, crot, getMoveInfo(player))==0);
 
 	move = setMove(getMoveInfo(player), 1, crot, cy, cx);
 	

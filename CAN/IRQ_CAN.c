@@ -20,17 +20,20 @@
 #include "../render/render.h"
 #include "../timer/timer.h"
 #include "../menu/menu.h"
+#include "../RIT/RIT.h"
 
 
 extern uint8_t can_turn;
+extern uint8_t npc_turn;
 extern int8_t timer;
 extern unsigned int move;
 extern uint8_t last_turn;
 extern unsigned int setMove(uint8_t player, uint8_t mode, uint8_t dir, uint8_t py, uint8_t px);
-extern char buffer[2];
+extern char buffer[4];
 extern enum en_mod gameMode[2];
 extern uint8_t CAN;
 extern uint8_t isMenu;
+extern uint8_t lock;
 
 extern struct s_coords {
 	uint8_t x;
@@ -47,40 +50,35 @@ extern CAN_msg       CAN_RxMsg;    /* CAN message for receiving */
  *----------------------------------------------------------------------------*/
 void CAN_IRQHandler (void)  {
 	
+	uint8_t p;
   /* check CAN controller 1 */
 	icr = 0;
   icr = (LPC_CAN1->ICR | icr) & 0xFF;               /* clear interrupts */
 	
-  if (icr & (1 << 0)) {                          		/* CAN Controller #1 meassage is received */
+	if (icr & (1 << 0)) {                          	/* CAN Controller #1 meassage is received */
 		CAN_rdMsg (1, &CAN_RxMsg);	                		/* Read the message */
     LPC_CAN1->CMR = (1 << 2);                    		/* Release receive buffer */
 		
-		//data[0]==1 -> handshake asked
-		//data[0]==2 -> handshake replied
-		
-		if(gameMode[0]==menu_e){
-			gameMode[0]=twob_e;
-			if(CAN_RxMsg.data[0]==1){
-				CAN_TxMsg.data[0] = 2;
-				CAN_TxMsg.len = 1;
-				CAN_TxMsg.format = STANDARD_FORMAT;
-				CAN_TxMsg.type = DATA_FRAME;
-				CAN = 1;
-				CAN_TxMsg.id = CAN==1 ? 2 : 1;
-				CAN_wrMsg (CAN, &CAN_TxMsg);               /* transmit message */
+		if(gameMode[0]==twob_e && isMenu == 2 && gameMode[1] == menu_e) {
+
+			if(CAN_RxMsg.data[0] == (uint8_t) human_e){
+				gameMode[1] = human_e;
+			}else if(CAN_RxMsg.data[0] == (uint8_t) npc_e){
+				gameMode[1] = npc_e;
 			}
-			isMenu = 2;
-			playerChoice();
-		}else if(gameMode[0]==twob_e && gameMode[1]==menu_e){
+			
 			isMenu = 0;
-			gameMode[1]=npc_e;
 			initGame();
-		}else{
+		}
+		else if(gameMode[0]==twob_e && isMenu == 0 && gameMode[1]!=menu_e && CAN_RxMsg.data[0]!=0xFF) {
 			move = setMove(CAN_RxMsg.data[0],
 										(CAN_RxMsg.data[1] & 0xF0) >> 4,
 										(CAN_RxMsg.data[1] & 0xF),
 										CAN_RxMsg.data[2],
 										CAN_RxMsg.data[3]);
+			
+			npc_turn=1;
+			can_turn=1;
 			
 			if(getMoveInfo(mode) == 0) {
 				placePlayer(getMoveInfo(px), getMoveInfo(py), getMoveInfo(player));
@@ -88,15 +86,42 @@ void CAN_IRQHandler (void)  {
 				placeWall(getMoveInfo(px), getMoveInfo(py), getMoveInfo(dir), getMoveInfo(player));
 			}
 			
-			can_turn = 1;
-			switchPlayer();
+			enable_RIT();
+
+		}
+		else if (isMenu == 1){
+			gameMode[0]=twob_e;
+			isMenu = 2;
+			if(CAN_RxMsg.data[0] == 0xFE){
+				CAN = 1;
+				CAN_TxMsg.data[0] = 0xFF;
+				CAN_TxMsg.len = 1;
+				CAN_TxMsg.format = STANDARD_FORMAT;
+				CAN_TxMsg.type = DATA_FRAME;
+				CAN_TxMsg.id = (CAN == 1) ? 2:1;
+				CAN_wrMsg (CAN, &CAN_TxMsg);               /* transmit message */
+
+				playerChoice();
+			} else {
+				disable_timer(2);
+				playerChoice();
+				enable_RIT();
+			}
+		} 
+		else if (CAN_RxMsg.data[1] == 'W') {
+			p = CAN_RxMsg.data[0];
+			GUIText_X_Center(BOARD_Y+44, (uint8_t *) (p==0 ? "--- P1 VICTORY ---" : "--- P2 VICTORY ---"), p==0 ? Black : Red, White);
+			disable_RIT();
+			reset_timer(0);
 		}
 		
-
-		
-  }
+	}
 	if (icr & (1 << 1)) {                         /* CAN Controller #1 meassage is transmitted */
-		// do nothing
+		if(isMenu == 2){
+			lock++; //usata per bloccare il "secondo" giocatore ad inizio partita
+		}else{
+			//nothing
+		}	
 	}
 		
 	/* check CAN controller 2 */
@@ -108,41 +133,68 @@ void CAN_IRQHandler (void)  {
 		CAN_rdMsg (2, &CAN_RxMsg);	                		/* Read the message */
     LPC_CAN2->CMR = (1 << 2);                    		/* Release receive buffer */
 		
-		if(gameMode[0]==menu_e){
-			gameMode[0]=twob_e;
-			if(CAN_RxMsg.data[0]==1){
-				CAN_TxMsg.data[0] = 2;
-				CAN_TxMsg.len = 1;
-				CAN_TxMsg.format = STANDARD_FORMAT;
-				CAN_TxMsg.type = DATA_FRAME;
-				CAN = 2;
-				CAN_TxMsg.id = CAN==1 ? 2 : 1;
-				CAN_wrMsg (CAN, &CAN_TxMsg);               /* transmit message */
+		if(gameMode[0]==twob_e && isMenu == 2 && gameMode[1] == menu_e){
+
+			if(CAN_RxMsg.data[0] == (uint8_t) human_e){
+				gameMode[1] = human_e;
+			}else if(CAN_RxMsg.data[0] == (uint8_t) npc_e){
+				gameMode[1] = npc_e;
 			}
-			isMenu = 2;
-			playerChoice();
-		}else if(gameMode[0]==twob_e && gameMode[1]==menu_e){
+			
 			isMenu = 0;
-			gameMode[1]=npc_e;
 			initGame();
-		}else{
+		}
+		else if(gameMode[0]==twob_e && isMenu == 0 && gameMode[1]!=menu_e && CAN_RxMsg.data[0]!=0xFF){
 			move = setMove(CAN_RxMsg.data[0],
 										(CAN_RxMsg.data[1] & 0xF0) >> 4,
 										(CAN_RxMsg.data[1] & 0xF),
 										CAN_RxMsg.data[2],
 										CAN_RxMsg.data[3]);
 		
+			npc_turn=1;
+			can_turn=1;
+			
 			if(getMoveInfo(mode) == 0) {
 				placePlayer(getMoveInfo(px), getMoveInfo(py), getMoveInfo(player));
 			}else if(getMoveInfo(mode) == 1) {
 				placeWall(getMoveInfo(px), getMoveInfo(py), getMoveInfo(dir), getMoveInfo(player));
 			}
-			can_turn = 1;
-			switchPlayer();
+			
+			enable_RIT();
+		}
+		else if (isMenu == 1){
+			gameMode[0]=twob_e;
+			isMenu = 2;
+			if(CAN_RxMsg.data[0] == 0xFE){
+				CAN = 2;
+				CAN_TxMsg.data[0] = 0xFF;
+				CAN_TxMsg.len = 1;
+				CAN_TxMsg.format = STANDARD_FORMAT;
+				CAN_TxMsg.type = DATA_FRAME;
+				CAN_TxMsg.id = 2;
+				CAN_TxMsg.id = (CAN == 1) ? 2:1;
+				CAN_wrMsg (CAN, &CAN_TxMsg);				/* transmit message */
+
+				playerChoice();
+			}else {
+				disable_timer(2);
+				playerChoice();
+				enable_RIT();
+			}
+		}
+		else if (CAN_RxMsg.data[1] == 'W') {
+			p = CAN_RxMsg.data[0];
+			GUIText_X_Center(BOARD_Y+44, (uint8_t *) (p==0 ? "--- P1 VICTORY ---" : "--- P2 VICTORY ---"), p==0 ? Black : Red, White);
+			disable_RIT();
+			reset_timer(0);
 		}
 		
 	}
 	if (icr & (1 << 1)) {                         /* CAN Controller #2 meassage is transmitted */
-		// do nothing
+		if(isMenu == 2){
+			lock++; //usata per bloccare il "secondo" giocatore ad inizio partita
+		}else{
+			//nothing
+		}	
 	}
 }

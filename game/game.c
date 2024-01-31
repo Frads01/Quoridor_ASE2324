@@ -30,12 +30,13 @@ volatile struct s_coords { //posizioni più recenti dei giocatori dentro la grigl
 } pcoords[2];
 
 volatile uint8_t n_walls[2]; //conteggio muri
-volatile char buffer[2]; //per stampa testo a schermo
+volatile char buffer[4]; //per stampa testo a schermo
 volatile char boardMat[13][13]; //matrice di gioco
 volatile enum en_mod gameMode[2];
 volatile uint8_t graph[V][V];
 volatile uint8_t CAN;
 volatile enum en_dir selectedDir;
+volatile uint8_t lock;
 
 extern unsigned int setMove(uint8_t player, uint8_t mode, uint8_t dir, uint8_t py, uint8_t px);
 
@@ -98,8 +99,13 @@ void initGame(void){
 	NVIC_EnableIRQ(EINT1_IRQn);
 	NVIC_EnableIRQ(EINT2_IRQn);
 	
-	enable_timer(0);
-	
+	if(lock==1){
+		disable_RIT();
+		disable_timer(0);
+	}else{
+		enable_timer(0);
+	}
+
 }
 
 
@@ -330,8 +336,6 @@ void moveElement(enum en_dir direction){
 	if(last_turn != p && (getMoveInfo(px) != pcoords[p].x || getMoveInfo(py) != pcoords[p].y)){
 		last_turn = p;
 	}
-	
-	if(gameMode[1] == human_e && gameMode[0] == twob_e) sendMove(); //CAN
 }
 
 void placePlayer(uint16_t newX, uint16_t newY, uint8_t player){
@@ -339,65 +343,74 @@ void placePlayer(uint16_t newX, uint16_t newY, uint8_t player){
 
 	disable_timer(0);
 		
-	if(pcoords[player].x != 0){
-		graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x-1+pcoords[player].y*7] = 1;
-		graph[pcoords[player].x-1+pcoords[player].y*7][pcoords[player].x+pcoords[player].y*7] = 1;
-	}
-	
-	if(pcoords[player].x != N_CELLS-1){
-		graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x+1+pcoords[player].y*7] = 1;
-		graph[pcoords[player].x+1+pcoords[player].y*7][pcoords[player].x+pcoords[player].y*7] = 1;
-	}
+	if(getMoveInfo(dir)!=1){
+		if(pcoords[player].x != 0 && boardMat[pcoords[player].x*2-1][pcoords[player].y*2]!='X'){
+			graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x-1+pcoords[player].y*7] = 1;
+			graph[pcoords[player].x-1+pcoords[player].y*7][pcoords[player].x+pcoords[player].y*7] = 1;
+		}
 		
-	if(pcoords[player].y != 0){
-		graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x+(pcoords[player].y-1)*7] = 1;
-		graph[pcoords[player].x+(pcoords[player].y-1)*7][pcoords[player].x+pcoords[player].y*7] = 1;
-	}
-	
-	if(pcoords[player].y != N_CELLS-1){
-		graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x+(pcoords[player].y+1)*7] = 1;
-		graph[pcoords[player].x+(pcoords[player].y+1)*7][pcoords[player].x+pcoords[player].y*7] = 1;
-	}
-	
-	if(npc_turn != 1) getPossibleMoves(Black);
-	writePlayer(getPlayerPosition(pcoords[player].x), getPlayerPosition(pcoords[player].y), Black);
-	writePlayer(getPlayerPosition(newX), getPlayerPosition(newY), player==0 ? PLAYER1_COL : PLAYER2_COL);
+		if(pcoords[player].x != N_CELLS-1 && boardMat[pcoords[player].x*2+1][pcoords[player].y*2]!='X'){
+			graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x+1+pcoords[player].y*7] = 1;
+			graph[pcoords[player].x+1+pcoords[player].y*7][pcoords[player].x+pcoords[player].y*7] = 1;
+		}
+			
+		if(pcoords[player].y != 0 && boardMat[pcoords[player].x*2][pcoords[player].y*2-1]!='X'){
+			graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x+(pcoords[player].y-1)*7] = 1;
+			graph[pcoords[player].x+(pcoords[player].y-1)*7][pcoords[player].x+pcoords[player].y*7] = 1;
+		}
 		
-	boardMat[pcoords[player].x*2][pcoords[player].y*2]=' ';
-	boardMat[newX*2][newY*2]= (player==0 ? '0':'1');
+		if(pcoords[player].y != N_CELLS-1 && boardMat[pcoords[player].x*2][pcoords[player].y+1]!='X'){
+			graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x+(pcoords[player].y+1)*7] = 1;
+			graph[pcoords[player].x+(pcoords[player].y+1)*7][pcoords[player].x+pcoords[player].y*7] = 1;
+		}
 		
-	pcoords[player].x=newX;
-	pcoords[player].y=newY;
-	
-	if(pcoords[player].x != 0){
-		graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x-1+pcoords[player].y*7] = 0;
-		graph[pcoords[player].x-1+pcoords[player].y*7][pcoords[player].x+pcoords[player].y*7] = 0;
-	}
-	
-	if(pcoords[player].x != N_CELLS-1){
-		graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x+1+pcoords[player].y*7] = 0;
-		graph[pcoords[player].x+1+pcoords[player].y*7][pcoords[player].x+pcoords[player].y*7] = 0;
-	}
+		if(npc_turn != 1) getPossibleMoves(Black);
+		writePlayer(getPlayerPosition(pcoords[player].x), getPlayerPosition(pcoords[player].y), Black);
+		writePlayer(getPlayerPosition(newX), getPlayerPosition(newY), player==0 ? PLAYER1_COL : PLAYER2_COL);
+			
+		boardMat[pcoords[player].x*2][pcoords[player].y*2]=' ';
+		boardMat[newX*2][newY*2]= (player==0 ? '0':'1');
+			
+		pcoords[player].x=newX;
+		pcoords[player].y=newY;
 		
-	if(pcoords[player].y != 0){
-		graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x+(pcoords[player].y-1)*7] = 0;
-		graph[pcoords[player].x+(pcoords[player].y-1)*7][pcoords[player].x+pcoords[player].y*7] = 0;
-	}
-	
-	if(pcoords[player].y != N_CELLS-1){
-		graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x+(pcoords[player].y+1)*7] = 0;
-		graph[pcoords[player].x+(pcoords[player].y+1)*7][pcoords[player].x+pcoords[player].y*7] = 0;
-	}
+		if(pcoords[player].x != 0){
+			graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x-1+pcoords[player].y*7] = 0;
+			graph[pcoords[player].x-1+pcoords[player].y*7][pcoords[player].x+pcoords[player].y*7] = 0;
+		}
 		
-	if ((player==0 && newY==0)||(player==1 && newY==6)){
+		if(pcoords[player].x != N_CELLS-1){
+			graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x+1+pcoords[player].y*7] = 0;
+			graph[pcoords[player].x+1+pcoords[player].y*7][pcoords[player].x+pcoords[player].y*7] = 0;
+		}
+			
+		if(pcoords[player].y != 0){
+			graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x+(pcoords[player].y-1)*7] = 0;
+			graph[pcoords[player].x+(pcoords[player].y-1)*7][pcoords[player].x+pcoords[player].y*7] = 0;
+		}
 		
-		GUIText_X_Center(BOARD_Y+44, (uint8_t *) (player==0 ? "--- P1 VICTORY ---" : "--- P2 VICTORY ---"), player==0 ? Black : Red, White);
-		GUIText_X_Center(BOARD_Y+60, (uint8_t *) "HOLD INT0 TO START", Black, White);
-		
-		//NVIC_DisableIRQ(EINT1_IRQn);
-		//NVIC_DisableIRQ(EINT2_IRQn);
-		
-		flag++;
+		if(pcoords[player].y != N_CELLS-1){
+			graph[pcoords[player].x+pcoords[player].y*7][pcoords[player].x+(pcoords[player].y+1)*7] = 0;
+			graph[pcoords[player].x+(pcoords[player].y+1)*7][pcoords[player].x+pcoords[player].y*7] = 0;
+		}
+			
+		if ((player==0 && newY==0)||(player==1 && newY==6)){
+			
+			GUIText_X_Center(BOARD_Y+44, (uint8_t *) (player==0 ? "--- P1 VICTORY ---" : "--- P2 VICTORY ---"), player==0 ? Black : Red, White);
+			if(gameMode[0]==oneb_e) GUIText_X_Center(BOARD_Y+60, (uint8_t *) "HOLD INT0 TO START", Black, White);
+			
+			if(gameMode[0]==twob_e){
+				CAN_TxMsg.data[0] = player;
+				CAN_TxMsg.data[1] = 'W';
+				CAN_TxMsg.len = 2;
+				CAN_TxMsg.format = STANDARD_FORMAT;
+				CAN_TxMsg.type = DATA_FRAME;
+				CAN_TxMsg.id = CAN==1 ? 2 : 1;
+				CAN_wrMsg (CAN==1 ? 1 : 2, &CAN_TxMsg);
+			}
+			
+			flag++;
+		}
 	}
 	
 	if(flag==0){
@@ -572,47 +585,44 @@ uint8_t getMoveInfo(enum en_info info){
 	}
 }
 
-void handshake (void){
-	
-	CAN_TxMsg.data[0] = 1;
-	CAN_TxMsg.len = 1;
-	CAN_TxMsg.format = STANDARD_FORMAT;
-	CAN_TxMsg.type = DATA_FRAME;
-	CAN_TxMsg.id = 1;
-	CAN_wrMsg (1, &CAN_TxMsg); 
-	
-}
-
 void sendMove(void){
 	
 	CAN_TxMsg.data[0] = getMoveInfo(player);
-	CAN_TxMsg.data[1] = (getMoveInfo(mode) << 8) | getMoveInfo(dir);
+	CAN_TxMsg.data[1] = (getMoveInfo(mode) << 4) | getMoveInfo(dir);
 	CAN_TxMsg.data[2] = getMoveInfo(py);
 	CAN_TxMsg.data[3] = getMoveInfo(px);
 	CAN_TxMsg.len = 4;
 	CAN_TxMsg.format = STANDARD_FORMAT;
 	CAN_TxMsg.type = DATA_FRAME;
-	CAN_TxMsg.id = getMoveInfo(player)==0 ? 2 : 1;
-	CAN_wrMsg (getMoveInfo(player)==0 ? 1 : 2, &CAN_TxMsg);               /* transmit message */
-
+	CAN_TxMsg.id = CAN==1 ? 2 : 1;
+	CAN_wrMsg (CAN==1 ? 1 : 2, &CAN_TxMsg);               /* transmit message */
+	disable_RIT();
+	disable_timer(0);
+	
 }
+
+//DA SISTEMARE, MANCA SOLO QUESTO
 void switchPlayer(void){
 	uint8_t p, pn;
+	
+	p = getMoveInfo(player);
+	pn = (!p & 0x1);
 	
 	if(npc_turn == 1){
 		npc_turn = 0;
 		return;
 	}
 	
-	p = getMoveInfo(player);
-	pn = (!p & 0x1);
-	
-	if(gameMode[0]==twob_e && gameMode[1]==human_e && can_turn==0){
-
-		can_turn = 1;
+	if(gameMode[0]==twob_e && can_turn == 0){
+		can_turn=1;
 		sendMove(); //CAN
-
 		return;
+	}
+	
+	if(gameMode[0]==twob_e && gameMode[1]==npc_e && npc_turn == 1){
+		//npc_turn = 0;
+		NPC_func();
+		sendMove();
 	}
 	
 	if(gameMode[0]==oneb_e && gameMode[1]==npc_e && npc_turn==0){

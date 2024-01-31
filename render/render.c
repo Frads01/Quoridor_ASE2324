@@ -10,6 +10,7 @@
 extern int8_t timer;
 extern unsigned int move;
 extern uint8_t wallIndex;
+extern uint8_t lock;
 
 extern struct s_coordsw {
 	uint8_t x;
@@ -38,12 +39,7 @@ void initGameScreen(void){
 	writePlayer(getPlayerPosition(pcoords[0].x), getPlayerPosition(pcoords[0].y), PLAYER1_COL);
 	writePlayer(getPlayerPosition(pcoords[1].x), getPlayerPosition(pcoords[1].y), PLAYER2_COL);
 	
-	
-
-	getPossibleMoves(PLAYER_SEL);
-	//writePlayer(getPlayerPosition(PLAYER_X, 4), getPlayerPosition(PLAYER_Y, 7-1), PLAYER_SEL);
-	//writePlayer(getPlayerPosition(PLAYER_X, 4-1), getPlayerPosition(PLAYER_Y, 7), PLAYER_SEL);
-	//writePlayer(getPlayerPosition(PLAYER_X, 4+1), getPlayerPosition(PLAYER_Y, 7), PLAYER_SEL);	
+	if(lock!=1){getPossibleMoves(PLAYER_SEL);}
 }
 
 void refreshWalls(void){

@@ -14,10 +14,13 @@
 #include "../timer/timer.h"
 #include "../GLCD/GLCD.h"
 #include "../menu/menu.h"
+#include "../CAN/CAN.h"
 
 volatile uint8_t zero=0;
 volatile uint8_t one=0;
 volatile uint8_t two=0;
+
+volatile int8_t oneb = -1;
 
 extern unsigned int move;
 extern uint8_t n_walls[2]; //conteggio muri
@@ -30,6 +33,9 @@ extern int8_t timer;
 extern uint8_t last_turn;
 extern enum en_mod gameMode[2];
 extern uint8_t isMenu;
+extern uint8_t CAN;
+extern uint8_t lock;
+extern uint8_t can_turn;
 
 extern unsigned int setMove(uint8_t player, uint8_t mode, uint8_t dir, uint8_t py, uint8_t px);
 
@@ -58,6 +64,7 @@ void RIT_IRQHandler (void)
 		
 		if(down==1 && left==1){
 			moveElement(dl_e);
+			return;
 		}
 		
 	} else {
@@ -69,8 +76,9 @@ void RIT_IRQHandler (void)
 		down++;
 		right++;
 		
-		if (down==1 && right==1){
+		if (down>=1 && right>=1){
 			moveElement(dr_e);
+			return;
 		}
 		
 	} else {
@@ -84,6 +92,7 @@ void RIT_IRQHandler (void)
 		
 		if (up==1 && left==1) {
 			moveElement(ul_e);
+			return;
 		}
 		
 	} else {
@@ -97,6 +106,7 @@ void RIT_IRQHandler (void)
 		
 		if(up==1 && right==1) {
 			moveElement(ur_e);
+			return;
 		}
 		
 	} else {
@@ -134,16 +144,13 @@ void RIT_IRQHandler (void)
 		switch(down){
 			case 1:
 				if(isMenu==1){
-					if(gameMode[0] != twob_e){
-						if(gameMode[0] != menu_e){
-							LCD_DrawRectFilled((MAX_SCREEN_X-112)/2, MAX_SCREEN_Y/2 - 3 - 31, (MAX_SCREEN_X-16)/2, 30, White);
-							GUI_Text(GUIText_CenterCX((uint8_t *) boards_text[1]), MAX_SCREEN_Y/2 - 3 - 24, (uint8_t *) boards_text[1], Black, White);
-						}
-						gameMode[0] = twob_e;
+					if(oneb!=0){
+						oneb=0;
+						LCD_DrawRectFilled((MAX_SCREEN_X-112)/2, MAX_SCREEN_Y/2 - 3 - 31, (MAX_SCREEN_X-16)/2, 30, White);
+						GUI_Text(GUIText_CenterCX((uint8_t *) boards_text[1]), MAX_SCREEN_Y/2 - 3 - 24, (uint8_t *) boards_text[1], Black, White);
 						LCD_DrawRectFilled((MAX_SCREEN_X-112)/2, MAX_SCREEN_Y/2 + 3 + 1, (MAX_SCREEN_X-16)/2, 30, Yellow);
 						GUI_Text(GUIText_CenterCX((uint8_t *) boards_text[2]), MAX_SCREEN_Y/2 + 3 + 8, (uint8_t *) boards_text[2], Black, Yellow);
 					}
-
 				}else if (isMenu==2){
 					
 					if(gameMode[1] != npc_e){
@@ -193,20 +200,14 @@ void RIT_IRQHandler (void)
 		switch(up){
 			case 1:
 				if(isMenu==1){
-					
-					if(gameMode[0] != oneb_e){
-						if(gameMode[0] != menu_e){
-							LCD_DrawRectFilled((MAX_SCREEN_X-112)/2, MAX_SCREEN_Y/2 + 3 + 1, (MAX_SCREEN_X-16)/2, 30, White);	
-							GUI_Text(GUIText_CenterCX((uint8_t *) boards_text[2]), MAX_SCREEN_Y/2 + 3 + 8, (uint8_t *) boards_text[2], Black, White);
-						}
-						gameMode[0] = oneb_e;
+					if(oneb!=1){
+						oneb=1;
+						LCD_DrawRectFilled((MAX_SCREEN_X-112)/2, MAX_SCREEN_Y/2 + 3 + 1, (MAX_SCREEN_X-16)/2, 30, White);	
+						GUI_Text(GUIText_CenterCX((uint8_t *) boards_text[2]), MAX_SCREEN_Y/2 + 3 + 8, (uint8_t *) boards_text[2], Black, White);
 						LCD_DrawRectFilled((MAX_SCREEN_X-112)/2, MAX_SCREEN_Y/2 - 3 - 31, (MAX_SCREEN_X-16)/2, 30, Yellow);
 						GUI_Text(GUIText_CenterCX((uint8_t *) boards_text[1]), MAX_SCREEN_Y/2 - 3 - 24, (uint8_t *) boards_text[1], Black, Yellow);
 					}
-
-					
 				}else if (isMenu==2){
-					
 					if(gameMode[1] != human_e){
 						if(gameMode[0] != menu_e){
 							LCD_DrawRectFilled((MAX_SCREEN_X-112)/2, MAX_SCREEN_Y/2 + 3 + 1, (MAX_SCREEN_X-16)/2, 30, White);
@@ -230,10 +231,68 @@ void RIT_IRQHandler (void)
 	if(zero>=1){
 		if((LPC_GPIO2->FIOPIN & (1<<10)) == 0){
 			switch(zero){
+				case 1:
+					if(oneb == 0){
+						if(isMenu == 1){
+							
+							CAN = 1;
+							CAN_TxMsg.data[0] = 0xFE;
+							CAN_TxMsg.len = 1;
+							CAN_TxMsg.format = STANDARD_FORMAT;
+							CAN_TxMsg.type = DATA_FRAME;
+							CAN_TxMsg.id = (CAN == 1)? 2:1;
+							CAN_wrMsg (CAN, &CAN_TxMsg);
+							GUIText_X_Center(210, (uint8_t *) "- CAN1 not working -", White, Blue);
+							GUIText_X_Center(226, (uint8_t *) "Trying CAN2...", White, Blue);
+							enable_timer(2);
+							disable_RIT();
+							
+						}else if(isMenu == 2 && gameMode[0] == twob_e){
+							//segnalo modalità scelta
+							if(gameMode[1] == human_e){
+								
+								CAN_TxMsg.data[0] = (uint8_t) human_e;
+								CAN_TxMsg.len = 1;
+								CAN_TxMsg.format = STANDARD_FORMAT;
+								CAN_TxMsg.type = DATA_FRAME;
+								CAN_TxMsg.id = (CAN == 1)? 2:1;
+								CAN_wrMsg (CAN, &CAN_TxMsg);
+								
+							}else if (gameMode[1] == npc_e){
+								
+								CAN_TxMsg.data[0] = (uint8_t) npc_e;
+								CAN_TxMsg.len = 1;
+								CAN_TxMsg.format = STANDARD_FORMAT;
+								CAN_TxMsg.type = DATA_FRAME;
+								CAN_TxMsg.id = (CAN == 1)? 2:1;
+								CAN_wrMsg (CAN, &CAN_TxMsg);;
+								
+							}
+							isMenu=0;
+							initGame();
+						}
+					}else if (isMenu == 1){
+						
+						gameMode[0]=oneb_e;
+						isMenu = 2;
+						playerChoice();
+						
+					}else if (isMenu == 2){
+						isMenu=0;
+						initGame();
+						NVIC_EnableIRQ(EINT1_IRQn);
+						NVIC_EnableIRQ(EINT2_IRQn);
+					}
+
+					break;
+					
 				case 20:
-					initGame();
-					NVIC_EnableIRQ(EINT1_IRQn);
-					NVIC_EnableIRQ(EINT2_IRQn);
+					if(gameMode[0]==oneb_e){
+						initGame();
+						NVIC_EnableIRQ(EINT1_IRQn);
+						NVIC_EnableIRQ(EINT2_IRQn);
+					}
+
 					break;
 				default:
 					break;
