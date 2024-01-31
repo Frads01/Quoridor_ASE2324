@@ -30,11 +30,12 @@ int main(void){
 	joystick_init();
 	CAN_Init();
 	init_RIT(0x004C4B40);									/* RIT Initialization 50 msec       */
-	init_timer(0, 0x017D7840);						/* 1s, per il timer di 20 secondi */
-	init_timer(1, 0x047868C0);						/* 3s, per la comparsa a schermo di testi */
+	init_timer(0, 25000000*1);						/* 1s, per il timer di 20 secondi */
+	init_timer(1, 25000000*3);						/* 3s, per la comparsa a schermo di testi */
+	init_timer(2, 25000000*4);						/* 4s, per controllo handshake */
 	
 	enable_RIT();
-	
+
 	generateMenu();
 	
 	NVIC_DisableIRQ(EINT1_IRQn);
