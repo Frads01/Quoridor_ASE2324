@@ -15,7 +15,7 @@ Al proprio turno il giocatore può scegliere se muovere orizzontalmente o vertic
 
 Se due pedine si trovano faccia a faccia, colui che ha il tratto può scavalcare l'avversario e porsi alle sue spalle. Non è possibile "chiudere" un giocatore con l'aiuto dei muri; bisogna sempre lasciargli la possibilità di arrivare alla meta.
 
-## UPDATE 31/01/2024: aggiornato all'extrapoint 2
+> _**UPDATE 31/01/2024**: aggiornato all'extrapoint 2_
 ### Caratteristiche principali
 *	Rappresentazione della griglia di gioco come matrice 13×13. La matrice, che si compone di celle riserva-te per i muri alternate a celle riservate per il giocatore, permette di gestire lo spostamento delle pedine e il posizionamento dei muri in maniera semplice, verificando direttamente la presenza di zone “murate”, dei percorsi disponibili, e di mosse non valide nel caso del posizionamento dei muri (ad esempio, la sovrapposi-zione).
 *	Controllo della “trappola”. Durante il posizionamento del muro, per evitare che uno dei 2 giocatori rimanga intrappolato, è stato utilizzato un algoritmo ricorsivo basato sul Depth-First Search per i grafi: vengono con-trollate le celle adiacenti ai giocatori, e il muro verrà piazzato se esiste almeno un percorso che permette al giocatore di vincere.
