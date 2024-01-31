@@ -14,6 +14,7 @@ Ogni giocatore parte dal centro della sua linea perimetrale, e l'obiettivo è ar
 Al proprio turno il giocatore può scegliere se muovere orizzontalmente o verticalmente la propria pedina, oppure se inserire un muro. Il muro non può essere scavalcato ma deve essere aggirato.
 
 Se due pedine si trovano faccia a faccia, colui che ha il tratto può scavalcare l'avversario e porsi alle sue spalle. Non è possibile "chiudere" un giocatore con l'aiuto dei muri; bisogna sempre lasciargli la possibilità di arrivare alla meta.
+
 ------
 # **UPDATE 31/01/2024**: aggiornato all'extrapoint 2
 
