@@ -23,10 +23,13 @@ Se due pedine si trovano faccia a faccia, colui che ha il tratto può scavalcare
 *	Utilizzo di strutture dati enum per indicare la posizione scelta (en_dir), l’informazione della mossa (en_info) e modalità di gioco (en_mod).
 ## Impiego risorse hardware
 *	Dimensione dello stack: 0x1000 (4096), aumentato per permettere la ricorsione.
+
+| Timer  | Descrizione |
+| ------------- |:-------------:|
 | Timer 0 (1s) | Usato per gestire il timer di gioco di 20 secondi, definito con una variabile intera unsigned. Alla scadenza di T0, la variabile viene decrementata. Viene resettata a fine mossa o quando si arriva a 0. |
 | Timer 1 (3s) | Usato per la comparsa a schermo di scritte. |
 | Timer 2 (4s) | Usato per la comunicazione tra CAN: in caso CAN1 non sia disponibile, dopo 4s viene con-trollato CAN2. |
-RIT (50ms)	Usato per il joystick e il debouncing dei tasti.
+| RIT (50ms) | Usato per il joystick e il debouncing dei tasti. |
 ## Implementazione delle nuove funzionalità
 *	Movimenti diagonali. Sono stati inseriti dei casi aggiuntivi nella struttura dati enum en_dir e nella funzio-ne moveElement, che vengono chiamati solo se viene rilevata la pressione di 2 direzioni adiacenti del joy-stick (e.g., su-destra, giù-sinistra).
 *	NPC. Per la scelta della modalità e il posizionamento del muro, è stata usata una funzione random con se-me uguale al valore del RIT quando questa viene chiamata (LPC_RIT->RICOUNTER). Per lo spostamento del giocatore, invece, viene cercato il percorso più breve tramite una versione dell’algoritmo di Dijkstra adattato al progetto. 
